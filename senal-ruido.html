@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content">
+<title>Señal / Ruido</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f9f9f7;
+    --border: #e4e4e0;
+    --muted: #bbb;
+    --red: #e53935;
+
+    /* SEÑAL — verde pastel */
+    --s-bg:     #e8f5ec;
+    --s-bg2:    #d9eedf;
+    --s-border: #b2d9bc;
+    --s-dot:    #52a870;
+    --s-text:   #2d6e47;
+    --s-label:  #3a8057;
+
+    /* RUIDO — celeste pastel */
+    --n-bg:     #e4f2fa;
+    --n-bg2:    #d3e9f5;
+    --n-border: #9ecde8;
+    --n-dot:    #4ea8d2;
+    --n-text:   #1e6a96;
+    --n-label:  #2878a8;
+
+    --font-head: 'Syne', sans-serif;
+    --font-mono: 'DM Mono', monospace;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: #222; font-family: var(--font-mono); min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    padding: 26px 24px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    background: #fff;
+  }
+  .logo {
+    font-family: var(--font-head);
+    font-weight: 800;
+    font-size: 1.2rem;
+    letter-spacing: -0.03em;
+  }
+  .logo-s { color: var(--s-label); }
+  .logo-sep { color: #ccc; margin: 0 5px; }
+  .logo-n { color: var(--n-label); }
+  .header-stats { font-size: 0.64rem; display: flex; gap: 14px; }
+  .hs { color: var(--s-label); font-weight: 500; }
+  .hn { color: var(--n-label); font-weight: 500; }
+
+  /* MAIN */
+  main { max-width: 600px; margin: 0 auto; padding-bottom: 100px; }
+
+  /* SECTION LABEL */
+  .sec-label {
+    font-family: var(--font-head);
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 18px 24px 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .sec-label.sl { color: var(--s-label); }
+  .sec-label.nl { color: var(--n-label); }
+  .sec-label::after { content: ''; flex: 1; height: 1px; }
+  .sec-label.sl::after { background: var(--s-border); }
+  .sec-label.nl::after { background: var(--n-border); }
+
+  /* ITEM CARD */
+  .item-card { border-bottom: 1px solid transparent; transition: background 0.12s; }
+  .item-card.signal { background: var(--s-bg); border-bottom-color: var(--s-border); }
+  .item-card.signal:hover { background: var(--s-bg2); }
+  .item-card.noise  { background: var(--n-bg); border-bottom-color: var(--n-border); }
+  .item-card.noise:hover  { background: var(--n-bg2); }
+
+  .item-header {
+    padding: 13px 24px;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .item-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .signal .item-dot { background: var(--s-dot); }
+  .noise  .item-dot { background: var(--n-dot); }
+
+  .item-title-row { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .item-title { font-family: var(--font-head); font-size: 0.9rem; font-weight: 600; letter-spacing: -0.01em; }
+  .signal .item-title { color: var(--s-text); }
+  .noise  .item-title { color: var(--n-text); }
+
+  .item-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+  .dl-badge {
+    font-size: 0.58rem;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-family: var(--font-mono);
+  }
+  .signal .dl-badge { background: var(--s-bg2); color: var(--s-label); border: 1px solid var(--s-border); }
+  .noise  .dl-badge { background: var(--n-bg2); color: var(--n-label); border: 1px solid var(--n-border); }
+  .dl-badge.urg { background: #fff0f0; color: var(--red); border-color: #ffcccc; }
+
+  .expand-icon { font-size: 0.6rem; color: var(--muted); transition: transform 0.18s; }
+  .item-card.open .expand-icon { transform: rotate(180deg); }
+
+  /* BODY */
+  .item-body { display: none; padding: 2px 24px 16px 42px; animation: fi 0.16s ease; }
+  .item-card.open .item-body { display: block; }
+  @keyframes fi { from { opacity:0; transform:translateY(-3px); } to { opacity:1; transform:translateY(0); } }
+
+  .item-desc { font-size: 0.78rem; line-height: 1.65; color: #666; margin-bottom: 12px; white-space: pre-wrap; }
+
+  /* ADD NOTE */
+  .add-note-row { display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px; }
+  .note-input {
+    flex: 1;
+    border-radius: 6px;
+    color: #222;
+    font-family: var(--font-mono);
+    font-size: 0.76rem;
+    padding: 8px 10px;
+    resize: none;
+    height: 52px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .signal .note-input { background: var(--s-bg2); border: 1px solid var(--s-border); }
+  .signal .note-input:focus { border-color: var(--s-dot); }
+  .noise  .note-input { background: var(--n-bg2); border: 1px solid var(--n-border); }
+  .noise  .note-input:focus { border-color: var(--n-dot); }
+
+  .btn-add-note {
+    border: none;
+    border-radius: 6px;
+    font-family: var(--font-head);
+    font-weight: 700;
+    font-size: 0.68rem;
+    padding: 0 13px;
+    height: 52px;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: opacity 0.15s;
+    white-space: nowrap;
+    color: #fff;
+  }
+  .signal .btn-add-note { background: var(--s-dot); }
+  .noise  .btn-add-note { background: var(--n-dot); }
+  .btn-add-note:hover { opacity: 0.78; }
+
+  /* NOTES LIST */
+  .notes-list { margin-bottom: 10px; }
+  .note-entry { padding: 8px 10px; margin-bottom: 4px; border-radius: 5px; }
+  .signal .note-entry { background: var(--s-bg2); border-left: 2px solid var(--s-border); }
+  .noise  .note-entry { background: var(--n-bg2); border-left: 2px solid var(--n-border); }
+  .note-date { font-size: 0.57rem; color: var(--muted); margin-bottom: 2px; letter-spacing: 0.05em; }
+  .note-text { font-size: 0.76rem; color: #555; line-height: 1.5; }
+
+  /* ACTIONS */
+  .item-actions { display: flex; gap: 8px; padding-top: 9px; border-top: 1px solid rgba(0,0,0,0.06); }
+  .btn-act {
+    font-family: var(--font-mono);
+    font-size: 0.63rem;
+    background: none;
+    border-radius: 4px;
+    padding: 4px 10px;
+    cursor: pointer;
+    transition: all 0.12s;
+    border: 1px solid transparent;
+  }
+  .signal .btn-act { color: var(--s-label); border-color: var(--s-border); }
+  .signal .btn-act:hover { background: var(--s-border); }
+  .noise  .btn-act { color: var(--n-label); border-color: var(--n-border); }
+  .noise  .btn-act:hover { background: var(--n-border); }
+  .btn-act.del { color: var(--red) !important; border-color: #ffcccc !important; }
+  .btn-act.del:hover { background: #fff0f0 !important; }
+
+  .empty { padding: 16px 24px; font-size: 0.72rem; color: var(--muted); }
+
+  /* FAB */
+  .fab {
+    position: fixed; bottom: 24px; right: 24px;
+    width: 50px; height: 50px;
+    background: var(--s-dot); color: #fff;
+    border: none; border-radius: 50%;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 2px 14px rgba(82,168,112,0.35);
+    z-index: 200;
+    display: flex; align-items: center; justify-content: center;
+    transition: transform 0.16s, box-shadow 0.16s;
+  }
+  .fab:hover { transform: scale(1.08); }
+
+  /* MODAL — bottom sheet */
+  .overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.3); z-index: 500;
+    align-items: flex-end; justify-content: center;
+  }
+  .overlay.open { display: flex; }
+  .modal {
+    background: #fff;
+    border-top: 1px solid var(--border);
+    border-radius: 16px 16px 0 0;
+    width: 100%; max-width: 600px;
+    padding: 20px 24px 36px;
+    animation: up 0.2s ease;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+  @keyframes up { from { transform:translateY(30px); opacity:0; } to { transform:translateY(0); opacity:1; } }
+
+  .handle { width: 32px; height: 3px; background: #ddd; border-radius: 2px; margin: 0 auto 18px; }
+  .modal-h { font-family: var(--font-head); font-size: 0.95rem; font-weight: 800; margin-bottom: 18px; letter-spacing: -0.02em; }
+
+  .fg { margin-bottom: 13px; }
+  .fl {
+    display: block;
+    font-family: var(--font-head); font-size: 0.58rem; font-weight: 700;
+    letter-spacing: 0.15em; text-transform: uppercase; color: #aaa; margin-bottom: 5px;
+  }
+  .fi, .ft {
+    width: 100%; background: #f5f5f3; border: 1px solid #ddd;
+    border-radius: 7px; color: #111; font-family: var(--font-mono);
+    font-size: 0.85rem; padding: 10px 12px; outline: none;
+    transition: border-color 0.15s; -webkit-appearance: none;
+  }
+  .fi:focus, .ft:focus { border-color: var(--s-dot); background: #fff; }
+  .ft { resize: vertical; height: 76px; }
+
+  .type-toggle { display: flex; border-radius: 7px; overflow: hidden; border: 1px solid #ddd; }
+  .t-btn {
+    flex: 1; padding: 11px; border: none; background: #f5f5f3;
+    color: #aaa; font-family: var(--font-head); font-weight: 700;
+    font-size: 0.76rem; cursor: pointer; transition: all 0.15s; letter-spacing: 0.02em;
+  }
+  .t-btn.s.active { background: var(--s-dot); color: #fff; }
+  .t-btn.n.active { background: var(--n-dot); color: #fff; }
+
+  .m-actions { display: flex; gap: 10px; margin-top: 18px; }
+  .btn-ok {
+    flex: 1; background: var(--s-dot); color: #fff;
+    border: none; border-radius: 7px;
+    font-family: var(--font-head); font-weight: 800; font-size: 0.86rem;
+    padding: 12px; cursor: pointer; transition: opacity 0.15s; letter-spacing: 0.02em;
+  }
+  .btn-ok:hover { opacity: 0.82; }
+  .btn-no {
+    background: none; color: #aaa; border: 1px solid #ddd; border-radius: 7px;
+    font-family: var(--font-mono); font-size: 0.8rem;
+    padding: 12px 18px; cursor: pointer; transition: all 0.12s;
+  }
+  .btn-no:hover { color: #555; border-color: #aaa; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <span class="logo-s">Señal</span><span class="logo-sep">/</span><span class="logo-n">Ruido</span>
+  </div>
+  <div class="header-stats">
+    <span class="hs" id="ss">0 señales</span>
+    <span class="hn" id="sn">0 ruidos</span>
+  </div>
+</header>
+
+<main>
+  <div class="sec-label sl">Señal — lo esencial</div>
+  <div id="sl"></div>
+  <div class="sec-label nl" style="margin-top:8px">Ruido — segundo plano</div>
+  <div id="nl"></div>
+</main>
+
+<button class="fab" onclick="openModal()">+</button>
+
+<div class="overlay" id="ov">
+  <div class="modal">
+    <div class="handle"></div>
+    <div class="modal-h" id="mh">Nuevo ítem</div>
+    <div class="fg">
+      <label class="fl">Título *</label>
+      <input class="fi" id="it" type="text" placeholder="¿De qué se trata?" autocomplete="off">
+    </div>
+    <div class="fg">
+      <label class="fl">Descripción</label>
+      <textarea class="ft" id="id2" placeholder="Contexto, detalles..."></textarea>
+    </div>
+    <div class="fg">
+      <label class="fl">Tipo</label>
+      <div class="type-toggle">
+        <button class="t-btn s active" id="bs" onclick="selType('signal')">⚡ Señal</button>
+        <button class="t-btn n" id="bn" onclick="selType('noise')">~ Ruido</button>
+      </div>
+    </div>
+    <div class="fg">
+      <label class="fl">Deadline (opcional)</label>
+      <input class="fi" id="id3" type="date">
+    </div>
+    <div class="m-actions">
+      <button class="btn-no" onclick="closeModal()">Cancelar</button>
+      <button class="btn-ok" onclick="saveItem()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let items = JSON.parse(localStorage.getItem('sr4') || '[]');
+  let editing = null, selT = 'signal';
+
+  const save = () => localStorage.setItem('sr4', JSON.stringify(items));
+  const gid  = () => Date.now().toString(36) + Math.random().toString(36).slice(2);
+  const esc  = s => (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  function fmtDl(ds) {
+    if (!ds) return null;
+    const [y,m,d] = ds.split('-').map(Number);
+    const dt = new Date(y,m-1,d), today = new Date(); today.setHours(0,0,0,0);
+    const diff = Math.floor((dt-today)/86400000);
+    const mo = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+    const label = diff<0?`Venció hace ${Math.abs(diff)}d`:diff===0?'Hoy':diff===1?'Mañana':diff<=6?`En ${diff}d`:`${d} ${mo[m-1]}`;
+    return { label, urg: diff<=3 };
+  }
+
+  function fmtTs(iso) {
+    const d=new Date(iso), p=n=>String(n).padStart(2,'0');
+    return `${p(d.getDate())}/${p(d.getMonth()+1)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+  }
+
+  function sorted(type) {
+    return items.filter(i=>i.type===type).sort((a,b)=>{
+      if (a.deadline&&b.deadline) return a.deadline.localeCompare(b.deadline);
+      return a.deadline?-1:b.deadline?1:new Date(b.createdAt)-new Date(a.createdAt);
+    });
+  }
+
+  function renderList(cid, type) {
+    const el = document.getElementById(cid);
+    const list = sorted(type);
+    if (!list.length) {
+      el.innerHTML = `<div class="empty">${type==='signal'?'Sin señales aún':'Sin ruido aún'}</div>`;
+      return;
+    }
+    el.innerHTML = list.map(item => {
+      const dl = item.deadline ? fmtDl(item.deadline) : null;
+      const notes = (item.interactions||[]).slice().reverse();
+      return `
+      <div class="item-card ${item.type}" id="c-${item.id}">
+        <div class="item-header" onclick="tog('${item.id}')">
+          <div class="item-dot"></div>
+          <div class="item-title-row">
+            <span class="item-title">${esc(item.title)}</span>
+            <div class="item-right">
+              ${dl?`<span class="dl-badge${dl.urg?' urg':''}">${dl.label}</span>`:''}
+              <span class="expand-icon">▾</span>
+            </div>
+          </div>
+        </div>
+        <div class="item-body">
+          ${item.description?`<div class="item-desc">${esc(item.description)}</div>`:''}
+          <div class="add-note-row">
+            <textarea class="note-input" id="n-${item.id}" placeholder="Agregar nota..."></textarea>
+            <button class="btn-add-note" onclick="addNote('${item.id}')">+ Nota</button>
+          </div>
+          ${notes.length?`<div class="notes-list">${notes.map(n=>`
+            <div class="note-entry">
+              <div class="note-date">${fmtTs(n.createdAt)}</div>
+              <div class="note-text">${esc(n.text)}</div>
+            </div>`).join('')}</div>`:''}
+          <div class="item-actions">
+            <button class="btn-act" onclick="editItem('${item.id}')">Editar</button>
+            <button class="btn-act" onclick="mvType('${item.id}')">${item.type==='signal'?'→ Ruido':'→ Señal'}</button>
+            <button class="btn-act del" onclick="del('${item.id}')">Eliminar</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function render() {
+    renderList('sl','signal'); renderList('nl','noise');
+    const s=items.filter(i=>i.type==='signal').length, n=items.filter(i=>i.type==='noise').length;
+    document.getElementById('ss').textContent=`${s} señal${s!==1?'es':''}`;
+    document.getElementById('sn').textContent=`${n} ruido${n!==1?'s':''}`;
+  }
+
+  function tog(id) { document.getElementById(`c-${id}`)?.classList.toggle('open'); }
+
+  function addNote(id) {
+    const ta=document.getElementById(`n-${id}`), txt=ta.value.trim();
+    if (!txt) return;
+    const item=items.find(i=>i.id===id); if (!item) return;
+    if (!item.interactions) item.interactions=[];
+    item.interactions.push({createdAt:new Date().toISOString(),text:txt});
+    save();
+    const was=document.getElementById(`c-${id}`)?.classList.contains('open');
+    render();
+    if (was) document.getElementById(`c-${id}`)?.classList.add('open');
+  }
+
+  function del(id) {
+    if (!confirm('¿Eliminar?')) return;
+    items=items.filter(i=>i.id!==id); save(); render();
+  }
+
+  function mvType(id) {
+    const it=items.find(i=>i.id===id);
+    if (it) { it.type=it.type==='signal'?'noise':'signal'; save(); render(); }
+  }
+
+  function editItem(id) {
+    const it=items.find(i=>i.id===id); if (!it) return;
+    editing=id;
+    document.getElementById('it').value=it.title;
+    document.getElementById('id2').value=it.description||'';
+    document.getElementById('id3').value=it.deadline||'';
+    selType(it.type);
+    document.getElementById('mh').textContent='Editar ítem';
+    document.getElementById('ov').classList.add('open');
+  }
+
+  function openModal() {
+    editing=null;
+    document.getElementById('it').value='';
+    document.getElementById('id2').value='';
+    document.getElementById('id3').value='';
+    selType('signal');
+    document.getElementById('mh').textContent='Nuevo ítem';
+    document.getElementById('ov').classList.add('open');
+    setTimeout(()=>document.getElementById('it').focus(),180);
+  }
+
+  function closeModal() { document.getElementById('ov').classList.remove('open'); editing=null; }
+
+  function selType(t) {
+    selT=t;
+    document.getElementById('bs').classList.toggle('active',t==='signal');
+    document.getElementById('bn').classList.toggle('active',t==='noise');
+  }
+
+  function saveItem() {
+    const title=document.getElementById('it').value.trim();
+    if (!title) { document.getElementById('it').focus(); return; }
+    const desc=document.getElementById('id2').value.trim();
+    const dl=document.getElementById('id3').value;
+    if (editing) {
+      const it=items.find(i=>i.id===editing);
+      if (it) Object.assign(it,{title,description:desc,deadline:dl,type:selT});
+    } else {
+      items.push({id:gid(),title,description:desc,deadline:dl,type:selT,createdAt:new Date().toISOString(),interactions:[]});
+    }
+    save(); render(); closeModal();
+  }
+
+  document.getElementById('ov').addEventListener('click',e=>{
+    if(e.target===document.getElementById('ov')) closeModal();
+  });
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape') closeModal();
+    if((e.metaKey||e.ctrlKey)&&e.key==='n'){e.preventDefault();openModal();}
+  });
+
+  render();
+</script>
+</body>
+</html>
